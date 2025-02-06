@@ -1,85 +1,32 @@
-import binascii # needed for conversions
-
+import binascii
 
 class RFEmulator:
-    '''A class to emulate RF encoding and decoding over Twitch chat '''
+    """A class to emulate RF encoding and decoding over Twitch chat."""
 
-    def __init__(self):
-        ''' initalization'''
+    def encode_hex(self, hex_str):
+        """Encodes a hex string into a Manchester-modulated Base64 string."""
+        try:
+            bin_str = ''.join(format(int(c, 16), '04b') for c in hex_str)
+        except ValueError:
+            raise ValueError("Invalid hex character encountered during encoding.")
 
-    def encodeHex(self, hexStr):
-        '''Accepts a hex string and returns the manchester modulated base64 string'''
+        man_str = ''.join("10" if c == "1" else "01" for c in bin_str)
 
-        # creates the empty strings to use
-        binStr = ""
-        manStr = ""
-        newBytes = 0
+        byte_data = int(man_str, 2).to_bytes((len(man_str) + 7) // 8, byteorder='big')
 
-        # converts the hex string to binary
-        for c in hexStr:
-            try:
-                binStr = binStr + format(int(c, 16), '04b')
-            except ValueError:
-                binStr = binStr + "0000"
-                print("Warning, encoding error")
+        return binascii.b2a_base64(byte_data).decode('latin1').strip()
 
-        #print(binStr)
-        
-        # converts to a manchester format: 1 becomes 10 and 0 becomes 01
-        for c in binStr:
-            if c == "1":
-                manStr = manStr + "10"
-            else:
-                manStr = manStr + "01"
+    def decode_man_base(self, base_str):
+        """Decodes a Manchester-modulated Base64 string back into hex."""
+        try:
+            temp_hex = binascii.b2a_hex(binascii.a2b_base64(base_str)).decode()
+        except binascii.Error:
+            raise ValueError("Invalid Base64 input during decoding.")
 
-        #print(manStr)
+        man_str = ''.join(format(int(c, 16), '04b') for c in temp_hex)
 
-        # converts to a byte array for base64
-        newBytes = int(manStr, 2).to_bytes((len(manStr) + 7) // 8, byteorder='big')
+        bin_str = ''.join("1" if man_str[i:i+2] == "10" else "0" for i in range(0, len(man_str), 2))
 
-        #print(binascii.b2a_base64(newBytes).decode('latin1'))
+        hex_str = format(int(bin_str, 2), 'x')
 
-        return binascii.b2a_base64(newBytes).decode('latin1')
-
-    def decodeManBase(self, baseStr):
-        '''Accepts a manchester modulated base64 string and returns the decoded hex string'''
-
-        # creates the empty strings to use
-        binStr = ""
-        manStr = ""
-        hexStr = ""
-        #print(baseStr)
-
-        # base64 decoded string as hex
-        temp = binascii.a2b_base64(baseStr)
-        #print(str(temp))
-        temp = binascii.b2a_hex(temp).decode()
-        #print(str(temp))
-
-
-        # convert hex to binary manchester
-        for c in str(temp):
-            try:
-                manStr = manStr + format(int(c, 16), '04b')
-            except ValueError:
-                manStr = manStr + "0000"
-                print("Warning, decoding error")
-
-        #print(manStr)
-
-        # convert manchester to normal binary
-        for c in range(0, len(manStr), 2):
-            if manStr[c:c+2] == '10':
-                binStr = binStr + '1'
-            else:
-                binStr = binStr + '0'
-
-        #print(f"binStr: {binStr}")
-
-        # convert back to hex string
-        hexStr = format(int(binStr, 2), 'x')
-
-        #print(f"hexstr: {hexStr}")
-
-        return hexStr
-        
+        return hex_str
